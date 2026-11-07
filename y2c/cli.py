@@ -27,7 +27,20 @@ def root():
     was simply its own directory.  It is a package module now, so the root is
     a level up; getting that wrong points the drum maps at y2c/maps and the
     by-sound mapping silently loses its tables.
+
+    A frozen build resolves it differently.  PyInstaller unpacks the bundle
+    into a throwaway directory, so whatever was baked in at build time would
+    otherwise be the only maps/ it could ever read -- and a build made by CI
+    has none, because the tables are generated from Casio's and Yamaha's
+    manuals and are deliberately not in the repository.  So when frozen, a
+    maps/ folder sitting beside the executable wins.  That is what lets a
+    downloaded build be given its tables instead of being stuck without them
+    for the life of the binary.
     """
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle:
+        beside = os.path.dirname(os.path.abspath(sys.executable))
+        return beside if os.path.isdir(os.path.join(beside, "maps")) else bundle
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

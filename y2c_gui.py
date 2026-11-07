@@ -50,9 +50,19 @@ KIT_CHOICES = [
 
 
 def here(*parts):
-    """A path inside the program, whether run from source or frozen."""
-    base = getattr(sys, "_MEIPASS", None) or os.path.dirname(
-        os.path.abspath(__file__))
+    """A path inside the program, whether run from source or frozen.
+
+    When frozen, anything sitting beside the executable wins over the bundled
+    copy -- see y2c.cli.root() for why.  Called with no arguments it still
+    returns the bundle root, because that is where the importable code is.
+    """
+    bundle = getattr(sys, "_MEIPASS", None)
+    if bundle and parts:
+        beside = os.path.join(
+            os.path.dirname(os.path.abspath(sys.executable)), *parts)
+        if os.path.exists(beside):
+            return beside
+    base = bundle or os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, *parts)
 
 
@@ -237,8 +247,18 @@ class App(tk.Tk):
                   "bad")
         for n in missing:
             self._say(f"    maps/{n}", "bad")
-        self._say("docs/README.md has the one command each. Without them the "
-                  "kits and tones fall back to the template's.", "bad")
+        if getattr(sys, "_MEIPASS", None):
+            # Someone holding only the executable has no docs/ to be sent to,
+            # and cannot rebuild the bundle either.  Tell them the one thing
+            # that does work: drop the folder next to the program.
+            self._say("Put a maps/ folder containing them beside this "
+                      "program and restart. They are generated from Casio's "
+                      "and Yamaha's own manuals -- the how is at", "bad")
+            self._say("    https://github.com/pakdad/yamaha2casio", "bad")
+        else:
+            self._say("docs/README.md has the one command each.", "bad")
+        self._say("Without them the kits and tones fall back to the "
+                  "template's.", "bad")
 
     # -- pickers --------------------------------------------------------
     def _pick_style(self):

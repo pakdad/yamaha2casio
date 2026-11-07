@@ -1,0 +1,90 @@
+# Build the Windows .exe on GitHub's own x86-64 Windows runners.
+#
+# This exists because PyInstaller cannot cross-compile: it bundles the
+# interpreter that runs it, so the building machine fixes both the operating
+# system and the processor. A Windows .exe needs a Windows Python, and an
+# x86-64 .exe needs an x86-64 Python. There is no flag for either, and no way
+# to produce this from the ARM Linux box the project is developed on.
+#
+#   push to main   -> build, and keep the .exe as a downloadable artifact
+#   push a v* tag  -> the same, and publish it as a release asset
+#   manual run     -> from the Actions tab, any branch
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+# A newer push makes an older in-flight build pointless.
+concurrency:
+  group: windows-exe-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write          # only needed by the release step, on tags
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # Before building anything: prove the code imports and runs on Windows.
+      # This is the part most likely to break, because the developing machine
+      # is Linux and path and encoding bugs do not show up there.
+      - name: Check the source runs on Windows
+        shell: bash
+        run: |
+          python -m compileall -q y2c y2c.py y2c_gui.py tools
+          python y2c.py --help > /dev/null
+          echo "source imports and the CLI responds"
+
+      # Expected to report the generated tables as MISSING: they are built
+      # from Casio's and Yamaha's manuals and are not in the repository. The
+      # run is informational, so a non-zero exit here is not a failure.
+      - name: Self-test (tables are expected to be absent)
+        shell: bash
+        continue-on-error: true
+        run: python y2c_gui.py --selftest
+
+      - name: Install PyInstaller
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: Report the target, then build
+        shell: bash
+        run: |
+          python tools/build_app.py --check
+          python tools/build_app.py
+
+      - name: Verify the result
+        shell: bash
+        run: |
+          test -f dist/y2c.exe || { echo "dist/y2c.exe was not produced"; exit 1; }
+          size=$(stat -c%s dist/y2c.exe)
+          echo "dist/y2c.exe is $size bytes"
+          # A real bundle carries Python and Tk. Anything tiny means the build
+          # silently produced a stub rather than a one-file executable.
+          test "$size" -gt 5000000 || { echo "too small to be a real bundle"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: y2c-windows-x86_64
+          path: dist/y2c.exe
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish as a release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/y2c.exe \
+            --title "y2c $GITHUB_REF_NAME" \
+            --notes-file .github/release-notes.md

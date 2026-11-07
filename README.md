@@ -161,8 +161,28 @@ trying it on a Raspberry Pi 5 rather than by reasoning about it:
   first problem. The script checks the page size first and says so, rather
   than failing confusingly half an hour into downloading Python.
 
-So on a Pi, build the native `dist/y2c` and use that; produce the `.exe` on an
-x86-64 machine with the same script, unchanged.
+So on a Pi, build the native `dist/y2c` and use that.
+
+### The Windows .exe is built by CI, for the same reason
+
+Since neither constraint can be argued away, the `.exe` is built where a
+real x86-64 Windows Python exists: GitHub's own runners.
+`.github/workflows/windows-exe.yml` builds it on every push to `main` and
+keeps it as a downloadable artifact, and on a `v*` tag publishes it as a
+release asset.
+
+```sh
+git tag v0.1 && git push origin v0.1     # -> a release with y2c.exe attached
+```
+
+**A build made there has no generated tables in it**, because they are not in
+the repository. It converts, and the meter, bars, part layout, chord handling
+and hand-written drum maps all work, but tone mapping needs those tables. So
+a frozen build prefers a `maps/` folder sitting **next to the executable**
+over anything bundled at build time — which is the only way to give a
+downloaded binary its tables, since the bundle is unpacked to a temporary
+directory and cannot be edited. The window says at startup which are
+missing.
 
 ## Track and section mapping
 
