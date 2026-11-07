@@ -1,0 +1,39 @@
+__pycache__/
+*.pyc
+
+# converted output and working files
+*.mid
+*.AC7
+
+# line-in and MIDI recordings from tools/capture.sh -- working files, and a
+# minute of 48 kHz stereo is larger than the whole source tree
+captures/
+
+# Casio's manuals and anything extracted from them.  samples/README.md already
+# sets the policy -- "Factory Casio rhythms are the instrument maker's
+# content, so none are committed here" -- and the manuals are the same thing
+# in another form, so they stay on disk and out of the history.  They are also
+# 15 MB of binary, against a source tree of well under one.
+# tools/drumlist.py regenerates the assignment list from the appendix; see
+# docs/README.md for the one command.
+docs/*.pdf
+docs/*.txt
+maps/ctx-drum-assignments.json
+maps/yamaha-drum-kits.json
+maps/ctx-tones.json
+maps/yamaha-voices.json
+maps/yamaha-megavoice.json
+
+# PyInstaller output: the frozen program and its scratch space.  dist/y2c is
+# 12 MB and is rebuilt by tools/build_app.py in under a minute.
+build/
+dist/
+dist-windows/
+
+# Editor and OS droppings, and local virtualenvs.
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+*.egg-info/
